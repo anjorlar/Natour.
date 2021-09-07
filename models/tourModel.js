@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const slugify = require('slugify');
+// const User = require('./userModel');
 // const validator = require('validator');
 
 const tourSchema = new mongoose.Schema(
@@ -77,7 +78,39 @@ const tourSchema = new mongoose.Schema(
     secretTour: {
       type: Boolean,
       default: false
-    }
+    },
+    startLocation: {
+      //geojson to specify geospatial data
+      type: {
+        type: String,
+        default: 'Point',
+        enum: ['Point']
+      },
+      coordinates: [Number],
+      address: String,
+      description: String,
+    },
+    location: [
+      {
+        type: {
+          type: String,
+          default: 'Point',
+          enum: ['Point']
+        },
+        coordinates: [Number],
+        address: String,
+        description: String,
+      }
+    ],
+    // guides: {
+    //   type: Array
+    // }
+    guides: [ // ref type used here is child referencing
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+      }
+    ]
   },
   {
     toJSON: { virtuals: true },
@@ -89,12 +122,27 @@ tourSchema.virtual('durationWeeks').get(function () {
   return this.duration / 7;
 });
 
+// Virtual populate
+tourSchema.virtual('reviews', {
+  ref: 'Review',
+  foreignField: 'tour', // location in referenced(Review) model
+  localField: "_id" // location in present(tour) model
+})
 // MIDLEWARE ALSO CALLED HOOKS // >>> mongoose docs
 // DOCUMENT MIDDLEWARE: runs before .save() and .create() does not run on insertMany
 tourSchema.pre('save', function (next) {
   this.slug = slugify(this.name, { lower: true });
   next();
 });
+
+// used to get users as tour guide in the embedded guides document
+// tourSchema.pre('save', async function (next) {
+//   // the asyncronous array.map returns an array of promises 
+//   const guidesPromises = this.guides.map(async id => await User.findById(id))
+//   // we use promise.all to resolve all the array promises
+//   this.guides = await Promise.all(guidesPromises)
+//   next();
+// });
 
 // tourSchema.pre('save', function(next) {
 //   console.log('Will save document...');
@@ -117,6 +165,14 @@ tourSchema.pre(/^find/, function (next) { // using regex to make the middleware 
   this.start = Date.now();
   next();
 });
+
+tourSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: 'guides',
+    select: '-__v -passwordChangedAt'
+  });
+  next()
+})
 
 tourSchema.post(/^find/, function (docs, next) {
   console.log(`Query took ${Date.now() - this.start} milliseconds!`);
