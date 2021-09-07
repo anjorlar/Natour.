@@ -1,10 +1,18 @@
 const express = require('express');
 const tourController = require('./../controllers/tourController');
 const tourMiddleware = require('../middleware/tour')
+const reviewRouter = require('./reviewRoutes');
+const authController = require('../controllers/authController');
+
+
 const router = express.Router();
-const authController = require('../controllers/authController')
 
 // router.param('id', tourController.checkID);
+//use this
+router.use('/:tourId/reviews', reviewRouter)
+//instead of this
+// router.route('/:tourId/reviews')
+//   .post(authController.protect, authController.restrictTo('user'), reviewController.createReview)
 
 router.route('/top-5-cheap')
   .get(tourMiddleware.aliasTopTours, tourController.getAllTours);
